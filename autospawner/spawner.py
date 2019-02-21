@@ -248,12 +248,10 @@ class RoomInfo:
             if 'user' in mapstats['stats'][room]['own']:
                 return False
 
-        #status_details = screepsclient.room_status(room, shard)['room']
-        #screepsclient.api_error_except(status_details)
-        # mapstats already has these details, use it rather than more api calls
         status_details = mapstats['stats'][room]
         if status_details['status'] != 'normal':
             return False
+
         # Some rooms seems to have openTime and novice times from the past, ignore those.
         if 'openTime' in status_details and float(status_details['openTime']) / 1000 > time():
             return False
@@ -261,12 +259,6 @@ class RoomInfo:
         if 'novice' in status_details and float(status_details['novice']) / 1000 > time():
             if self.getGcl() > 3:
                 return False
-
-        # Why check owner again? mapstats is accurate for that.
-        #overview = screepsclient.room_overview(room, shard=shard)
-        #screepsclient.api_error_except(overview)
-        #if overview['owner'] is not None:
-        #    return False
 
         return True
 

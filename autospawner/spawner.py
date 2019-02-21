@@ -5,6 +5,7 @@ import re
 import random
 import sys
 from time import sleep
+from time import time
 from websocket import create_connection
 import json
 
@@ -106,21 +107,27 @@ class Spawner:
         start_y = int(matches[3])-4
         roomlist = []
         for x in range(start_x, start_x+9):
-            sys.stdout.write('.')
-            sys.stdout.flush()
             for y in range(start_y, start_y+9):
                 roomname = "%s%s%s%s" % (dir_x, x, dir_y, y)
                 if x < 7 and y < 7:
                     if x > 3 and y > 3:
                         continue
-                if self.filterRoom(roomname, shard):
-                    roomlist.append(roomname)
-
+                roomlist.append(roomname)
+        mapstats = screepsclient.map_stats(roomlist, 'owner0', shard)
+        screepsclient.api_error_except(mapstats)
+        filteredroomlist = []
+        for roomname in roomlist:
+          sys.stdout.write('.')
+          sys.stdout.flush()
+          if self.filterRoom(roomname, shard, mapstats):
+            filteredroomlist.append(roomname)
+          
         sys.stdout.write('\n')
-        return roomlist
+        return filteredroomlist
 
-    def filterRoom(self, room, shard):
-        if not self.roominfo.isClaimable(room, shard):
+    def filterRoom(self, room, shard, mapstats):
+        if not self.roominfo.isClaimable(room, shard, mapstats):
+            print(shard, room, "Not Claimable")
             return False
 
         sources = self.roominfo.getSourceLocations(room, shard)
@@ -232,33 +239,34 @@ class RoomInfo:
             if shard in self.cache_details and room in self.cache_details[shard]:
                 return self.cache_details[shard][room]
 
-    def isClaimable(self, room, shard):
+    def isClaimable(self, room, shard, mapstats):
         prohibited = self.getBannedRooms(shard=shard)
         if room in prohibited:
             return False
 
-        mapstats = screepsclient.map_stats([room], 'claim0', shard)
-        screepsclient.api_error_except(mapstats)
         if 'own' in mapstats['stats'][room]:
             if 'user' in mapstats['stats'][room]['own']:
                 return False
 
-        status_details = screepsclient.room_status(room, shard)['room']
-        screepsclient.api_error_except(status_details)
+        #status_details = screepsclient.room_status(room, shard)['room']
+        #screepsclient.api_error_except(status_details)
+        # mapstats already has these details, use it rather than more api calls
+        status_details = mapstats['stats'][room]
         if status_details['status'] != 'normal':
             return False
-
-        if 'openTime' in status_details:
+        # Some rooms seems to have openTime and novice times from the past, ignore those.
+        if 'openTime' in status_details and float(status_details['openTime']) / 1000 > time():
             return False
 
-        if 'novice' in status_details:
+        if 'novice' in status_details and float(status_details['novice']) / 1000 > time():
             if self.getGcl() > 3:
                 return False
 
-        overview = screepsclient.room_overview(room, shard=shard)
-        screepsclient.api_error_except(overview)
-        if overview['owner'] is not None:
-            return False
+        # Why check owner again? mapstats is accurate for that.
+        #overview = screepsclient.room_overview(room, shard=shard)
+        #screepsclient.api_error_except(overview)
+        #if overview['owner'] is not None:
+        #    return False
 
         return True
 

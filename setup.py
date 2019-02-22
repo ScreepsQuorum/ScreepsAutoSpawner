@@ -42,10 +42,10 @@ setup(
   ],
 
   install_requires=[
-    'click>=5.0,<6.0',
-    'PyYAML>=3.12,<3.13',
-    'requests>=2.18.0,<2.19',
-    'screepsapi>=0.4.3'
+    'click>=5.0',
+    'PyYAML>=3.12, <4.0',
+    'requests>=2.18.0, <3.0',
+    'screepsapi>=0.5.0'
   ],
 
   extras_require={
